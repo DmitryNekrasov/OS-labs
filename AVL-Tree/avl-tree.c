@@ -25,12 +25,21 @@ static struct file_operations fops =
 	.release = dev_rls
 };
 
-static int __init my_init(void) {
-	return 0;
+int init_module(void)
+{
+	int t = register_chrdev(DEV_MAJOR, DEV_NAME, &fops);
+
+	if (t < 0) {
+		printk(KERN_ALERT "Device registration failed\n");
+	} else {
+		printk(KERN_ALERT "Device registered\n");
+	}
+
+	return t;
 }
 
-static void __exit my_exit(void) {
+void cleanup_module(void)
+{
+	unregister_chrdev(DEV_MAJOR, DEV_NAME);
 }
 
-module_init(my_init);
-module_exit(my_exit);
