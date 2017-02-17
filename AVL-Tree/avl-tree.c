@@ -56,6 +56,12 @@ static int dev_open(struct inode* my_inode, struct file* my_file)
 	return 0;
 }
 
+static int dev_rls(struct inode* my_inode, struct file* my_file)
+{
+	printk(KERN_ALERT "Device for AVL tree closed\n");
+	return 0;
+}
+
 static ssize_t dev_read(struct file* my_file, char* buff, size_t len, loff_t* off)
 {
 	int msg_len = strlen(msg);
