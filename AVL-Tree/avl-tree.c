@@ -1,27 +1,35 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/string.h>
+#include <linux/fs.h>
+#include <asm/uaccess.h>
 
-#define MODULE_NAME "AVL tree module"
-static const char* mod_name = MODULE_NAME;
+#define DEV_MAJOR 75
+#define DEV_MINOR 0
+#define DEV_NAME "avl_tree"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("dmitry");
-MODULE_DESCRIPTION(MODULE_NAME);
+MODULE_DESCRIPTION("Character device driver AVL tree");
 
-#define DEBUG 1
-#if DEBUG
-#define log(S) { printk("[%s] %s\n", mod_name, S); }
-#else
-#define log(S) ;
-#endif
+static int dev_open(struct inode*, struct file*);
+static int dev_rls(struct inode*, struct file*);
+static ssize_t dev_read(struct file*, char*, size_t, loff_t*);
+static ssize_t dev_write(struct file*, const char*, size_t, loff_t);
+
+static struct file_operations fops =
+{
+	.read = dev_read,
+	.open = dev_open,
+	.write = dev_write,
+	.release = dev_rls
+};
 
 static int __init my_init(void) {
-	log("module's been loaded");
 	return 0;
 }
 
 static void __exit my_exit(void) {
-	log("module's been unloaded");
 }
 
 module_init(my_init);
