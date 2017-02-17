@@ -74,3 +74,22 @@ static ssize_t dev_read(struct file* my_file, char* buff, size_t len, loff_t* of
 	return len;
 }
 
+static ssize_t dev_write(struct file* my_file, const char* buff, size_t len, loff_t* off)
+{
+	unsigned long ret;
+	printk(KERN_INFO "dev write\n");
+
+	if (len > sizeof(msg) - 1) {
+		return -EINVAL;
+	}
+
+	ret = copy_from_user(msg, buff, len);
+	if (ret) {
+		return -EFAULT;
+	}
+
+	msg[len] = '\0';
+	// TODO: process
+	return len;
+}
+
