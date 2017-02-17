@@ -32,11 +32,11 @@ static int times = 0;
 
 static int str2int(char* str) {
     int len = strlen(str);
-
     int result = 0;
     int rank = 1;
     int digit;
     int i;
+
     for (i = len - 1; i >= 0; i--) {
         digit = str[i] - '0';
         result += digit * rank;
@@ -48,30 +48,47 @@ static int str2int(char* str) {
 
 static int digitCount(int value) {
     int result = 0;
+
     while (value != 0) {
         result++;
         value /= 10;
     }
+
     return result;
 }
 
 static char* int2str(char* str, int value) {
     int len = digitCount(value);
     int i;
+    int d;
+
     str[len] = '\0';
+
     for (i = len - 1; i >= 0; i--) {
-        int d = value % 10;
+        d = value % 10;
         str[i] = d + '0';
         value /= 10;
     }
+
     return str;
 }
 
 static void process(void)
 {
-	unsigned d = str2int(msg);
-	d += 1000;
-	int2str(msg, d);
+	int sum = 0;
+	int value;
+
+	char* token = msg;
+	char* end = msg;
+
+	while (token != NULL) {
+		strsep(&end, " ");
+		value = str2int(token);
+		sum += value;
+		token = end;
+	}
+
+	int2str(msg, sum);
 }
 
 int init_module(void)
@@ -139,6 +156,7 @@ static ssize_t dev_write(struct file* my_file, const char* buff, size_t len, lof
 	}
 
 	msg[len - 1] = '\0';
+	printk(KERN_INFO "msg = \"%s\"", msg);
 	process();
 	return len;
 }
