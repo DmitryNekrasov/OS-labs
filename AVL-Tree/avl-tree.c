@@ -30,6 +30,13 @@ static struct file_operations fops =
 static char msg[MAXSTR] = { 0 };
 static int times = 0;
 
+static void process(void)
+{
+	char hi[MAXSTR] = "Hello, ";
+	strncpy(msg, strcat(hi, msg), MAXSTR);
+	strncpy(msg, strcat(msg, "\n"), MAXSTR);
+}
+
 int init_module(void)
 {
 	int t = register_chrdev(DEV_MAJOR, DEV_NAME, &fops);
@@ -95,7 +102,7 @@ static ssize_t dev_write(struct file* my_file, const char* buff, size_t len, lof
 	}
 
 	msg[len] = '\0';
-	// TODO: process
+	process();
 	return len;
 }
 
