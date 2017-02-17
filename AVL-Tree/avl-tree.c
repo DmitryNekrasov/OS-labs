@@ -25,6 +25,8 @@ static struct file_operations fops =
 	.release = dev_rls
 };
 
+static int times = 0;
+
 int init_module(void)
 {
 	int t = register_chrdev(DEV_MAJOR, DEV_NAME, &fops);
@@ -41,5 +43,13 @@ int init_module(void)
 void cleanup_module(void)
 {
 	unregister_chrdev(DEV_MAJOR, DEV_NAME);
+}
+
+static int dev_open(struct inode* my_inode, struct file* my_file)
+{
+	times++;
+	printk(KERN_ALERT "Device opened %d times\n", times);
+
+	return 0;
 }
 
