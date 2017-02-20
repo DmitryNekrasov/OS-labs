@@ -39,7 +39,7 @@ struct Node
 	struct Node* right;
 };
 
-struct Node* makeNode(int key)
+static struct Node* makeNode(int key)
 {
 	struct Node* node = (struct Node*) vmalloc(sizeof(struct Node));
 	node->key = key;
@@ -48,7 +48,67 @@ struct Node* makeNode(int key)
 	return node;
 }
 
-struct Node* insert(struct Node* root, int key)
+static int maxInt(int a, int b)
+{
+    return a > b ? a : b;
+}
+
+static int height(struct Node* node)
+{
+    return node ? node->height : 0;
+}
+
+static int balanceFactor(struct Node* node)
+{
+    return height(node->right) - height(node->left);
+}
+
+static void fixHeight(struct Node* node)
+{
+    int h1 = height(node->left);
+    int h2 = height(node->right);
+    node->height = maxInt(h1, h2) + 1;
+}
+
+static struct Node* rotateRight(struct Node* p)
+{
+    struct Node* q = p->left;
+    p->left = q->right;
+    q->right = p;
+    fixHeight(p);
+    fixHeight(q);
+    return q;
+}
+
+static struct Node* rotateLeft(struct Node* q)
+{
+    struct Node* p = q->right;
+    q->right = p->left;
+    p->left = q;
+    fixHeight(q);
+    fixHeight(p);
+    return p;
+}
+
+static struct Node* balance(struct Node* p)
+{
+    fixHeight(p);
+    if (balanceFactor(p) == 2) {
+        if (balanceFactor(p->right) < 0) {
+            p->right = rotateRight(p->right);
+        }
+        return rotateLeft(p);
+    }
+    if (balanceFactor(p) == -2) {
+        if (balanceFactor(p->left) > 0) {
+            p->left = rotateLeft(p->left);
+        }
+        return rotateRight(p);
+    }
+    return p;
+}
+
+static struct Node* insert(struct Node* root, int key)
 {
     if (!root) {
         return makeNode(key);
@@ -60,7 +120,7 @@ struct Node* insert(struct Node* root, int key)
         root->right = insert(root->right, key);
     }
 
-    return root;
+    return balance(root);
 }
 
 static int str2int(char* str)
@@ -107,7 +167,7 @@ static void int2str(char* str, int value)
     }
 }
 
-struct Node* makeTree(int a[], int size)
+static struct Node* makeTree(int a[], int size)
 {
     struct Node* tree = NULL;
     int i;
@@ -119,7 +179,7 @@ struct Node* makeTree(int a[], int size)
     return tree;
 }
 
-void rootLeftRight(char* result, struct Node* root)
+static void rootLeftRight(char* result, struct Node* root)
 {
 	char buf[MAXSTR];
 
@@ -128,7 +188,7 @@ void rootLeftRight(char* result, struct Node* root)
     	int2str(buf, root->key);
     	strncpy(result, strcat(result, buf), MAXSTR);
     	strncpy(result, strcat(result, ","), MAXSTR);
-    	int2str(buf, root->key);
+    	int2str(buf, root->height);
     	strncpy(result, strcat(result, buf), MAXSTR);
     	strncpy(result, strcat(result, "},"), MAXSTR);
     	rootLeftRight(result, root->left);
