@@ -50,154 +50,154 @@ static struct Node* makeNode(int key)
 
 static int maxInt(int a, int b)
 {
-    return a > b ? a : b;
+	return a > b ? a : b;
 }
 
 static int height(struct Node* node)
 {
-    return node ? node->height : 0;
+	return node ? node->height : 0;
 }
 
 static int balanceFactor(struct Node* node)
 {
-    return height(node->right) - height(node->left);
+	return height(node->right) - height(node->left);
 }
 
 static void fixHeight(struct Node* node)
 {
-    int h1 = height(node->left);
-    int h2 = height(node->right);
-    node->height = maxInt(h1, h2) + 1;
+	int h1 = height(node->left);
+	int h2 = height(node->right);
+	node->height = maxInt(h1, h2) + 1;
 }
 
 static struct Node* rotateRight(struct Node* p)
 {
-    struct Node* q = p->left;
-    p->left = q->right;
-    q->right = p;
-    fixHeight(p);
-    fixHeight(q);
-    return q;
+	struct Node* q = p->left;
+	p->left = q->right;
+	q->right = p;
+	fixHeight(p);
+	fixHeight(q);
+	return q;
 }
 
 static struct Node* rotateLeft(struct Node* q)
 {
-    struct Node* p = q->right;
-    q->right = p->left;
-    p->left = q;
-    fixHeight(q);
-    fixHeight(p);
-    return p;
+	struct Node* p = q->right;
+	q->right = p->left;
+	p->left = q;
+	fixHeight(q);
+	fixHeight(p);
+	return p;
 }
 
 static struct Node* balance(struct Node* p)
 {
-    fixHeight(p);
-    if (balanceFactor(p) == 2) {
-        if (balanceFactor(p->right) < 0) {
-            p->right = rotateRight(p->right);
-        }
-        return rotateLeft(p);
-    }
-    if (balanceFactor(p) == -2) {
-        if (balanceFactor(p->left) > 0) {
-            p->left = rotateLeft(p->left);
-        }
-        return rotateRight(p);
-    }
-    return p;
+	fixHeight(p);
+	if (balanceFactor(p) == 2) {
+		if (balanceFactor(p->right) < 0) {
+			p->right = rotateRight(p->right);
+		}
+		return rotateLeft(p);
+	}
+	if (balanceFactor(p) == -2) {
+		if (balanceFactor(p->left) > 0) {
+			p->left = rotateLeft(p->left);
+		}
+		return rotateRight(p);
+	}
+	return p;
 }
 
 static struct Node* insert(struct Node* root, int key)
 {
-    if (!root) {
-        return makeNode(key);
-    }
+	if (!root) {
+		return makeNode(key);
+	}
 
-    if (key < root->key) {
-        root->left = insert(root->left, key);
-    } else {
-        root->right = insert(root->right, key);
-    }
+	if (key < root->key) {
+		root->left = insert(root->left, key);
+	} else {
+		root->right = insert(root->right, key);
+	}
 
-    return balance(root);
+	return balance(root);
 }
 
 static int str2int(char* str)
 {
-    int len = strlen(str);
-    int result = 0;
-    int rank = 1;
-    int digit;
-    int i;
+	int len = strlen(str);
+	int result = 0;
+	int rank = 1;
+	int digit;
+	int i;
 
-    for (i = len - 1; i >= 0; i--) {
-        digit = str[i] - '0';
-        result += digit * rank;
-        rank *= 10;
-    }
+	for (i = len - 1; i >= 0; i--) {
+		digit = str[i] - '0';
+		result += digit * rank;
+		rank *= 10;
+	}
 
-    return result;
+	return result;
 }
 
 static int digitCount(int value)
 {
-    int result = 0;
+	int result = 0;
 
-    while (value != 0) {
-        result++;
-        value /= 10;
-    }
+	while (value != 0) {
+		result++;
+		value /= 10;
+	}
 
-    return result;
+	return result;
 }
 
 static void int2str(char* str, int value)
 {
-    int len = digitCount(value);
-    int i;
-    int d;
+	int len = digitCount(value);
+	int i;
+	int d;
 
-    str[len] = '\0';
+	str[len] = '\0';
 
-    for (i = len - 1; i >= 0; i--) {
-        d = value % 10;
-        str[i] = d + '0';
-        value /= 10;
-    }
+	for (i = len - 1; i >= 0; i--) {
+		d = value % 10;
+		str[i] = d + '0';
+		value /= 10;
+	}
 }
 
 static struct Node* makeTree(int a[], int size)
 {
-    struct Node* tree = NULL;
-    int i;
+	struct Node* tree = NULL;
+	int i;
 
-    for (i = 0; i < size; i++) {
-        tree = insert(tree, a[i]);
-    }
+	for (i = 0; i < size; i++) {
+		tree = insert(tree, a[i]);
+	}
 
-    return tree;
+	return tree;
 }
 
 static void rootLeftRight(char* result, struct Node* root)
 {
 	char buf[MAXSTR];
 
-    if (root) {
-    	strncpy(result, strcat(result, "[{"), MAXSTR);
-    	int2str(buf, root->key);
-    	strncpy(result, strcat(result, buf), MAXSTR);
-    	strncpy(result, strcat(result, ","), MAXSTR);
-    	int2str(buf, root->height);
-    	strncpy(result, strcat(result, buf), MAXSTR);
-    	strncpy(result, strcat(result, "},"), MAXSTR);
-    	rootLeftRight(result, root->left);
-    	strncpy(result, strcat(result, ","), MAXSTR);
-    	rootLeftRight(result, root->right);
-    	strncpy(result, strcat(result, "]"), MAXSTR);
-    } else {
-    	strncpy(result, strcat(result, "[]"), MAXSTR);
-    }
+	if (root) {
+		strncpy(result, strcat(result, "[{"), MAXSTR);
+		int2str(buf, root->key);
+		strncpy(result, strcat(result, buf), MAXSTR);
+		strncpy(result, strcat(result, ","), MAXSTR);
+		int2str(buf, root->height);
+		strncpy(result, strcat(result, buf), MAXSTR);
+		strncpy(result, strcat(result, "},"), MAXSTR);
+		rootLeftRight(result, root->left);
+		strncpy(result, strcat(result, ","), MAXSTR);
+		rootLeftRight(result, root->right);
+		strncpy(result, strcat(result, "]"), MAXSTR);
+	} else {
+		strncpy(result, strcat(result, "[]"), MAXSTR);
+	}
 }
 
 static void process(void)
