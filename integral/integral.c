@@ -1,8 +1,18 @@
-#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/fs.h>
+#include <linux/reboot.h>
+#include <linux/unistd.h>
 #include <asm/uaccess.h>
+#include <linux/time.h>
+#include <linux/random.h>
+#include <linux/syscalls.h>
+#include <linux/kernel.h>
+#include <linux/sched.h>
+#include <linux/kthread.h>
+#include <linux/jiffies.h>
+#include <linux/vmalloc.h>
+#include <linux/delay.h>
 
 #define DEV_MAJOR 105
 #define DEV_MINOR 0
@@ -13,6 +23,11 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("dmitry");
 MODULE_DESCRIPTION("Trapezoidal rule for approximating the definite integral");
+
+#define IDENT "for_thread_%d"
+#define NUM 4
+
+static struct completion finished[NUM];
 
 static int dev_open(struct inode*, struct file*);
 static int dev_rls(struct inode*, struct file*);
@@ -29,6 +44,15 @@ static struct file_operations fops =
 
 static char msg[MAXSTR] = { 0 };
 static int times = 0;
+
+struct Data
+{
+	int thread_num;
+	int from;
+	int to;
+	int step;
+	int result;
+};
 
 static int str2int(char* str)
 {
@@ -47,20 +71,86 @@ static int str2int(char* str)
 	return result;
 }
 
+static struct Data* makeData(int thread_num, int from, int to, int step)
+{
+	struct Data* data = (struct Data*) vmalloc(sizeof(struct Data));
+	data->thread_num = thread_num;
+	data->from = from;
+	data->to = to;
+	data->step = step;
+	data->result = 0;
+	return data;
+}
+
+int threadFunction(void* voidData)
+{
+	struct Data* data = (struct Data*) voidData;
+
+	msleep(15);
+
+	data->result = 100;
+
+	printk("hi %d\n", data->from);
+
+	complete(finished + data->thread_num);
+
+	return 0;
+}
+
+
+
 static void process(void)
 {
 	char* token = msg;
 	char* end = msg;
 
-	int a, b;
+	int from, to;
+	int step = 1;
+	int interval_size;
+	int a[NUM + 1];
+
+	struct Data* data[NUM];
+	struct task_struct* tasks[NUM];
+
+	int i;
+
+	int result = 0;
 
 	strsep(&end, " ");
-	a = str2int(token);
+	from = str2int(token);
 	token = end;
 	strsep(&end, " ");
-	b = str2int(token);
+	to = str2int(token);
 
-	printk("a = %d, b = %d\n", a, b);
+	printk("from = %d, to = %d\n", from, to);
+
+	interval_size = (to - from) / NUM;
+	a[0] = from;
+	for (i = 1; i <= NUM; i++) {
+		a[i] = a[i - 1] + interval_size;
+	}
+
+	for (i = 0; i < NUM; i++) {
+		data[i] = makeData(i, a[i], a[i + 1], step);
+	}
+
+	for (i = 0; i < NUM; i++) {
+		init_completion(finished + i);
+	}
+
+	for (i = 0; i < NUM; i++) {
+		tasks[i] = kthread_run(&threadFunction, (void*) data[i], IDENT, i);
+	}
+
+	for (i = 0; i < NUM; i++) {
+		wait_for_completion(finished + i);
+	}
+
+	for (i = 0; i < NUM; i++) {
+		result += data[i]->result;
+	}
+
+	printk("result = %d\n", result);
 }
 
 int init_module(void)
