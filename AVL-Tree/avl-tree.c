@@ -30,7 +30,8 @@ static struct file_operations fops =
 static char msg[MAXSTR] = { 0 };
 static int times = 0;
 
-static int str2int(char* str) {
+static int str2int(char* str)
+{
     int len = strlen(str);
     int result = 0;
     int rank = 1;
@@ -46,7 +47,8 @@ static int str2int(char* str) {
     return result;
 }
 
-static int digitCount(int value) {
+static int digitCount(int value)
+{
     int result = 0;
 
     while (value != 0) {
@@ -57,7 +59,8 @@ static int digitCount(int value) {
     return result;
 }
 
-static void int2str(char* str, int value) {
+static void int2str(char* str, int value)
+{
     int len = digitCount(value);
     int i;
     int d;
@@ -71,20 +74,37 @@ static void int2str(char* str, int value) {
     }
 }
 
-static void process(void)
+static int processArray(int a[], size_t size)
 {
 	int sum = 0;
+	size_t i;
+
+	for (i = 0; i < size; i++) {
+		sum += a[i];
+	}
+
+	return sum;
+}
+
+static void process(void)
+{
+	int sum;
 	int value;
 
 	char* token = msg;
 	char* end = msg;
 
+	int a[MAXSTR];
+	size_t size = 0;
+
 	while (token != NULL) {
 		strsep(&end, " ");
 		value = str2int(token);
-		sum += value;
+		a[size++] = value;
 		token = end;
 	}
+
+	sum = processArray(a, size);
 
 	int2str(msg, sum);
 }
