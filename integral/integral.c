@@ -51,7 +51,7 @@ struct Data
 	int from;
 	int to;
 	int step;
-	int result;
+	long long result;
 };
 
 static int str2int(char* str)
@@ -82,15 +82,26 @@ static struct Data* makeData(int thread_num, int from, int to, int step)
 	return data;
 }
 
+int f(int x) {
+	return x * x;
+}
+
 int threadFunction(void* voidData)
 {
 	struct Data* data = (struct Data*) voidData;
 
+	long long result = 0;
+	int i;
+
 	msleep(15);
 
-	data->result = 100;
+	for (i = data->from; i < data->to; i += data->step) {
+		result += (long long) (f(i) + f(i + data->step)) * data->step;
+	}
 
-	printk("hi %d\n", data->from);
+	data->result = result;
+
+	printk("hi %d\n", data->thread_num);
 
 	complete(finished + data->thread_num);
 
@@ -149,6 +160,7 @@ static void process(void)
 	for (i = 0; i < NUM; i++) {
 		result += data[i]->result;
 	}
+	result /= 2;
 
 	printk("result = %d\n", result);
 }
