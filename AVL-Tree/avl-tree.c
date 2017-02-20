@@ -223,7 +223,7 @@ static void process(void)
 
 	msg[0] = '\0';
 	rootLeftRight(msg, tree);
-	strncpy(msg, strcat(msg, "\n"), MAXSTR);;
+	strncpy(msg, strcat(msg, "\n"), MAXSTR);
 }
 
 int init_module(void)
