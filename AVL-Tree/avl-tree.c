@@ -119,34 +119,29 @@ struct Node* makeTree(int a[], int size)
     return tree;
 }
 
-static int processArray(int a[], size_t size)
+void rootLeftRight(char* result, struct Node* root)
 {
-	int sum = 0;
-	size_t i;
+	char buf[MAXSTR];
 
-	for (i = 0; i < size; i++) {
-		sum += a[i];
-	}
-
-	return sum;
-}
-
-void rootLeftRight(struct Node* root)
-{
     if (root) {
-        printk("[{%d,%d},", root->key, root->height);
-        rootLeftRight(root->left);
-        printk(",");
-        rootLeftRight(root->right);
-        printk("]");
+    	strncpy(result, strcat(result, "[{"), MAXSTR);
+    	int2str(buf, root->key);
+    	strncpy(result, strcat(result, buf), MAXSTR);
+    	strncpy(result, strcat(result, ","), MAXSTR);
+    	int2str(buf, root->key);
+    	strncpy(result, strcat(result, buf), MAXSTR);
+    	strncpy(result, strcat(result, "},"), MAXSTR);
+    	rootLeftRight(result, root->left);
+    	strncpy(result, strcat(result, ","), MAXSTR);
+    	rootLeftRight(result, root->right);
+    	strncpy(result, strcat(result, "]"), MAXSTR);
     } else {
-        printk("[]");
+    	strncpy(result, strcat(result, "[]"), MAXSTR);
     }
 }
 
 static void process(void)
 {
-	int sum;
 	int value;
 
 	char* token = msg;
@@ -164,12 +159,11 @@ static void process(void)
 		token = end;
 	}
 
-	sum = processArray(a, size);
 	tree = makeTree(a, size);
 
-	rootLeftRight(tree);
-
-	int2str(msg, sum);
+	msg[0] = '\0';
+	rootLeftRight(msg, tree);
+	strncpy(msg, strcat(msg, "\n"), MAXSTR);;
 }
 
 int init_module(void)
