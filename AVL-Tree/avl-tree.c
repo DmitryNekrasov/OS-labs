@@ -57,7 +57,7 @@ static int digitCount(int value) {
     return result;
 }
 
-static char* int2str(char* str, int value) {
+static void int2str(char* str, int value) {
     int len = digitCount(value);
     int i;
     int d;
@@ -69,8 +69,6 @@ static char* int2str(char* str, int value) {
         str[i] = d + '0';
         value /= 10;
     }
-
-    return str;
 }
 
 static void process(void)
