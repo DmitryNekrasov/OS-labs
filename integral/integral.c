@@ -30,11 +30,37 @@ static struct file_operations fops =
 static char msg[MAXSTR] = { 0 };
 static int times = 0;
 
+static int str2int(char* str)
+{
+	int len = strlen(str);
+	int result = 0;
+	int rank = 1;
+	int digit;
+	int i;
+
+	for (i = len - 1; i >= 0; i--) {
+		digit = str[i] - '0';
+		result += digit * rank;
+		rank *= 10;
+	}
+
+	return result;
+}
+
 static void process(void)
 {
-	char hi[MAXSTR] = "Hello, ";
-	strncpy(msg, strcat(hi, msg), MAXSTR);
-	strncpy(msg, strcat(msg, "\n"), MAXSTR);
+	char* token = msg;
+	char* end = msg;
+
+	int a, b;
+
+	strsep(&end, " ");
+	a = str2int(token);
+	token = end;
+	strsep(&end, " ");
+	b = str2int(token);
+
+	printk("a = %d, b = %d\n", a, b);
 }
 
 int init_module(void)
@@ -101,7 +127,7 @@ static ssize_t dev_write(struct file* my_file, const char* buff, size_t len, lof
 		return -EFAULT;
 	}
 
-	msg[len] = '\0';
+	msg[len - 1] = '\0';
 	process();
 	return len;
 }
