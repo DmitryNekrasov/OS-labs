@@ -1,8 +1,9 @@
+#include <asm/uaccess.h>
+#include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/string.h>
-#include <linux/fs.h>
-#include <asm/uaccess.h>
+#include <linux/vmalloc.h>
 
 #define DEV_MAJOR 75
 #define DEV_MINOR 0
@@ -29,6 +30,38 @@ static struct file_operations fops =
 
 static char msg[MAXSTR] = { 0 };
 static int times = 0;
+
+struct Node
+{
+	int key;
+	int height;
+	struct Node* left;
+	struct Node* right;
+};
+
+struct Node* makeNode(int key)
+{
+	struct Node* node = (struct Node*) vmalloc(sizeof(struct Node));
+	node->key = key;
+	node->height = 1;
+	node->left = node->right = NULL;
+	return node;
+}
+
+struct Node* insert(struct Node* root, int key)
+{
+    if (!root) {
+        return makeNode(key);
+    }
+
+    if (key < root->key) {
+        root->left = insert(root->left, key);
+    } else {
+        root->right = insert(root->right, key);
+    }
+
+    return root;
+}
 
 static int str2int(char* str)
 {
@@ -74,6 +107,18 @@ static void int2str(char* str, int value)
     }
 }
 
+struct Node* makeTree(int a[], int size)
+{
+    struct Node* tree = NULL;
+    int i;
+
+    for (i = 0; i < size; i++) {
+        tree = insert(tree, a[i]);
+    }
+
+    return tree;
+}
+
 static int processArray(int a[], size_t size)
 {
 	int sum = 0;
@@ -84,6 +129,19 @@ static int processArray(int a[], size_t size)
 	}
 
 	return sum;
+}
+
+void rootLeftRight(struct Node* root)
+{
+    if (root) {
+        printk("[{%d,%d},", root->key, root->height);
+        rootLeftRight(root->left);
+        printk(",");
+        rootLeftRight(root->right);
+        printk("]");
+    } else {
+        printk("[]");
+    }
 }
 
 static void process(void)
@@ -97,6 +155,8 @@ static void process(void)
 	int a[MAXSTR];
 	size_t size = 0;
 
+	struct Node* tree;
+
 	while (token != NULL) {
 		strsep(&end, " ");
 		value = str2int(token);
@@ -105,6 +165,9 @@ static void process(void)
 	}
 
 	sum = processArray(a, size);
+	tree = makeTree(a, size);
+
+	rootLeftRight(tree);
 
 	int2str(msg, sum);
 }
