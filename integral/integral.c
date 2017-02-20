@@ -93,15 +93,13 @@ int threadFunction(void* voidData)
 	long long result = 0;
 	int i;
 
-	msleep(15);
-
 	for (i = data->from; i < data->to; i += data->step) {
 		result += (long long) (f(i) + f(i + data->step)) * data->step;
 	}
 
 	data->result = result;
 
-	printk("hi %d\n", data->thread_num);
+	printk("Thread #%d, from %d to %d\n", data->thread_num, data->from, data->to);
 
 	complete(finished + data->thread_num);
 
@@ -127,6 +125,8 @@ static void process(void)
 
 	int result = 0;
 
+	long long ts1, ts2;
+
 	strsep(&end, " ");
 	from = str2int(token);
 	token = end;
@@ -149,6 +149,8 @@ static void process(void)
 		init_completion(finished + i);
 	}
 
+	ts1 = jiffies;
+
 	for (i = 0; i < NUM; i++) {
 		tasks[i] = kthread_run(&threadFunction, (void*) data[i], IDENT, i);
 	}
@@ -162,7 +164,10 @@ static void process(void)
 	}
 	result /= 2;
 
-	printk("result = %d\n", result);
+	ts2 = jiffies;
+
+	printk("Nanosecs %lld %lld\n", ts1, ts2);
+	printk("result = %d, time = %lld\n", result, ts2 - ts1);
 }
 
 int init_module(void)
