@@ -46,13 +46,52 @@ struct Process
 	char keystring[256];
 };
 
+struct Channel {
+	spinlock_t read_lock;
+	spinlock_t write_lock;
+	char buffer[256];
+};
+
+struct Channel* c1;
+struct Channel* c2;
+
+void put(struct Channel* channel, char* src, size_t len)
+{
+	spin_lock(&(channel->write_lock));
+	memcpy(channel->buffer, src, len);
+	spin_unlock(&(channel->read_lock));
+}
+
+void get(struct Channel* channel, char* dst)
+{
+	int len;
+
+	spin_lock(&(channel->read_lock));
+	len = channel->buffer[0];
+	memcpy(dst, channel->buffer, len);
+	spin_unlock(&(channel->write_lock));
+}
+
 static int team(void* data)
 {
+	char buffer[256];
+	int len = 20;
 	int i;
 
-	for (i = 0; i < 5; i++) {
-		printk("team %d\n", i);
+	for (i = 1; i <= 5; i++) {
+
 		msleep(10 * i);
+
+		buffer[0] = len;
+		buffer[1] = i;
+
+		put(c1, buffer, len);
+
+		printk("Team check monitor %d\n", buffer[1]);
+
+		get(c2, buffer);
+
+		printk("Team get monitor %d", buffer[1]);
 	}
 
 	return 0;
@@ -60,11 +99,24 @@ static int team(void* data)
 
 static int clientApp(void* data)
 {
+	char buffer[256];
+	int len = 20;
 	int i;
 
-	for (i = 0; i < 5; i++) {
-		printk("clientApp %d\n", i);
-		msleep(10 * i);
+	msleep(1000);
+
+	for (i = 1; i <= 5; i++) {
+
+		msleep(100 - 10 * i);
+
+		get(c1, buffer);
+
+		printk("Client App get query %d", buffer[1]);
+
+		buffer[1] *= 11;
+
+		printk("ClientApp send monitor %d to team\n", buffer[1]);
+		put(c2, buffer, len);
 	}
 
 	return 0;
@@ -72,22 +124,33 @@ static int clientApp(void* data)
 
 static void process(void)
 {
-	struct Process* teamProcess;
-	struct Process* clientAppProcess;
+	struct Process* team_process;
+	struct Process* client_app_process;
 
-	int teamData = 1;
-	int clientAppData = 2;
+	int team_data = 1;
+	int client_app_data = 2;
 
-	char teamName[10] = "team_name";
-	char clientAppName[20] = "client_app_name";
+	char team_name[10] = "team_name";
+	char client_app_name[20] = "client_app_name";
 
-	teamProcess = (struct Process*) vmalloc(sizeof(struct Process));
-	teamProcess->descriptor = kthread_run(&team, (void*) teamData, teamName);
-	memcpy(teamProcess->keystring, teamName, sizeof(teamName));
+	c1 = (struct Channel*) vmalloc(sizeof(struct Channel));
+	c2 = (struct Channel*) vmalloc(sizeof(struct Channel));
 
-	clientAppProcess = (struct Process*) vmalloc(sizeof(struct Process));
-	clientAppProcess->descriptor = kthread_run(&clientApp, (void*) clientAppData, clientAppName);
-	memcpy(clientAppProcess->keystring, clientAppName, sizeof(clientAppName));
+	spin_lock_init(&(c1->read_lock));
+	spin_lock_init(&(c1->write_lock));
+	spin_lock(&(c1->read_lock));
+
+	spin_lock_init(&(c2->read_lock));
+	spin_lock_init(&(c2->write_lock));
+	spin_lock(&(c2->read_lock));
+
+	team_process = (struct Process*) vmalloc(sizeof(struct Process));
+	team_process->descriptor = kthread_run(&team, (void*) team_data, team_name);
+	memcpy(team_process->keystring, team_name, sizeof(team_name));
+
+	client_app_process = (struct Process*) vmalloc(sizeof(struct Process));
+	client_app_process->descriptor = kthread_run(&clientApp, (void*) client_app_data, client_app_name);
+	memcpy(client_app_process->keystring, client_app_name, sizeof(client_app_name));
 }
 
 int init_module(void)
