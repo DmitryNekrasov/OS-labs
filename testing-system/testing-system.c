@@ -54,6 +54,10 @@ struct Channel {
 
 struct Channel* c1;
 struct Channel* c2;
+struct Channel* c3;
+struct Channel* c5;
+
+static int step_count = 5;
 
 void put(struct Channel* channel, char* src, size_t len)
 {
@@ -72,26 +76,43 @@ void get(struct Channel* channel, char* dst)
 	spin_unlock(&(channel->write_lock));
 }
 
+unsigned int generateRandom(int to)
+{
+	unsigned int rand;
+	get_random_bytes(&rand, sizeof(rand));
+	return rand % to;
+}
+
 static int team(void* data)
 {
 	char buffer[256];
 	int len = 20;
+	int rand;
 	int i;
 
-	for (i = 1; i <= 5; i++) {
-
-		msleep(10 * i);
+	for (i = 0; i < step_count; i++) {
 
 		buffer[0] = len;
-		buffer[1] = i;
+
+		rand = generateRandom(2);
+		if (rand == 1) {
+			buffer[1] = 1;
+			buffer[2] = 'A' + generateRandom(25);
+		} else {
+			buffer[1] = 0;
+		}
 
 		put(c1, buffer, len);
 
-		printk("Team check monitor %d\n", buffer[1]);
+		if (buffer[1] == 0) {
+			printk("Team check monitor\n");
+		} else {
+			printk("Team submit Problem %c\n", buffer[2]);
+		}
 
 		get(c2, buffer);
 
-		printk("Team get monitor %d", buffer[1]);
+		printk("Team get monitor\n");
 	}
 
 	return 0;
@@ -103,20 +124,50 @@ static int clientApp(void* data)
 	int len = 20;
 	int i;
 
-	msleep(1000);
-
-	for (i = 1; i <= 5; i++) {
-
-		msleep(100 - 10 * i);
+	for (i = 0; i < step_count; i++) {
 
 		get(c1, buffer);
 
-		printk("Client App get query %d", buffer[1]);
+		printk("Client App get query\n");
 
-		buffer[1] *= 11;
+		if (buffer[1] == 1) {
+			buffer[1] = 0;
+			printk("Client App send problem %c\n", buffer[2]);
+			// TODO: c4->put
+		}
 
-		printk("ClientApp send monitor %d to team\n", buffer[1]);
+		buffer[0] = len;
+		buffer[1] = 1;
+
+		put(c5, buffer, len);
+		printk("Client App requested monitor\n");
+
+		get(c3, buffer);
+		printk("Client App get monitor\n");
+
+		printk("Client App send monitor to team\n");
 		put(c2, buffer, len);
+	}
+
+	return 0;
+}
+
+static int monitor(void* data)
+{
+	char buffer[256];
+	int len = 20;
+	int i;
+
+	for (i = 0; i < step_count; i++) {
+		get(c5, buffer);
+
+		if (buffer[1] == 0) {
+			// TODO: get verdict
+		} else {
+			buffer[0] = len;
+			put(c3, buffer, len);
+			printk("Monitor returned to Client App\n");
+		}
 	}
 
 	return 0;
@@ -126,15 +177,20 @@ static void process(void)
 {
 	struct Process* team_process;
 	struct Process* client_app_process;
+	struct Process* monitor_process;
 
 	int team_data = 1;
 	int client_app_data = 2;
+	int monitor_data = 3;
 
 	char team_name[10] = "team_name";
 	char client_app_name[20] = "client_app_name";
+	char monitor_name[20] = "monitor_name";
 
 	c1 = (struct Channel*) vmalloc(sizeof(struct Channel));
 	c2 = (struct Channel*) vmalloc(sizeof(struct Channel));
+	c3 = (struct Channel*) vmalloc(sizeof(struct Channel));
+	c5 = (struct Channel*) vmalloc(sizeof(struct Channel));
 
 	spin_lock_init(&(c1->read_lock));
 	spin_lock_init(&(c1->write_lock));
@@ -144,6 +200,14 @@ static void process(void)
 	spin_lock_init(&(c2->write_lock));
 	spin_lock(&(c2->read_lock));
 
+	spin_lock_init(&(c3->read_lock));
+	spin_lock_init(&(c3->write_lock));
+	spin_lock(&(c3->read_lock));
+
+	spin_lock_init(&(c5->read_lock));
+	spin_lock_init(&(c5->write_lock));
+	spin_lock(&(c5->read_lock));
+
 	team_process = (struct Process*) vmalloc(sizeof(struct Process));
 	team_process->descriptor = kthread_run(&team, (void*) team_data, team_name);
 	memcpy(team_process->keystring, team_name, sizeof(team_name));
@@ -151,6 +215,10 @@ static void process(void)
 	client_app_process = (struct Process*) vmalloc(sizeof(struct Process));
 	client_app_process->descriptor = kthread_run(&clientApp, (void*) client_app_data, client_app_name);
 	memcpy(client_app_process->keystring, client_app_name, sizeof(client_app_name));
+
+	monitor_process = (struct Process*) vmalloc(sizeof(struct Process));
+	monitor_process->descriptor = kthread_run(&monitor, (void*) monitor_data, monitor_name);
+	memcpy(monitor_process->keystring, monitor_name, sizeof(monitor_name));
 }
 
 int init_module(void)
