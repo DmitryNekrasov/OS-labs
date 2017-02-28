@@ -1,8 +1,18 @@
-#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/fs.h>
+#include <linux/reboot.h>
+#include <linux/unistd.h>
 #include <asm/uaccess.h>
+#include <linux/time.h>
+#include <linux/random.h>
+#include <linux/syscalls.h>
+#include <linux/kernel.h>
+#include <linux/sched.h>
+#include <linux/kthread.h>
+#include <linux/jiffies.h>
+#include <linux/vmalloc.h>
+#include <linux/delay.h>
 
 #define DEV_MAJOR 125
 #define DEV_MINOR 0
@@ -30,11 +40,54 @@ static struct file_operations fops =
 static char msg[MAXSTR] = { 0 };
 static int times = 0;
 
+struct Process
+{
+	struct task_struct* descriptor;
+	char keystring[256];
+};
+
+static int team(void* data)
+{
+	int i;
+
+	for (i = 0; i < 5; i++) {
+		printk("team %d\n", i);
+		msleep(10 * i);
+	}
+
+	return 0;
+}
+
+static int clientApp(void* data)
+{
+	int i;
+
+	for (i = 0; i < 5; i++) {
+		printk("clientApp %d\n", i);
+		msleep(10 * i);
+	}
+
+	return 0;
+}
+
 static void process(void)
 {
-	char hi[MAXSTR] = "Hello, ";
-	strncpy(msg, strcat(hi, msg), MAXSTR);
-	strncpy(msg, strcat(msg, "\n"), MAXSTR);
+	struct Process* teamProcess;
+	struct Process* clientAppProcess;
+
+	int teamData = 1;
+	int clientAppData = 2;
+
+	char teamName[10] = "team_name";
+	char clientAppName[20] = "client_app_name";
+
+	teamProcess = (struct Process*) vmalloc(sizeof(struct Process));
+	teamProcess->descriptor = kthread_run(&team, (void*) teamData, teamName);
+	memcpy(teamProcess->keystring, teamName, sizeof(teamName));
+
+	clientAppProcess = (struct Process*) vmalloc(sizeof(struct Process));
+	clientAppProcess->descriptor = kthread_run(&clientApp, (void*) clientAppData, clientAppName);
+	memcpy(clientAppProcess->keystring, clientAppName, sizeof(clientAppName));
 }
 
 int init_module(void)
