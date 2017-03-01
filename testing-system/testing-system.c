@@ -46,7 +46,8 @@ struct Process
 	char keystring[256];
 };
 
-struct Channel {
+struct Channel
+{
 	spinlock_t read_lock;
 	spinlock_t write_lock;
 	char buffer[256];
@@ -55,7 +56,9 @@ struct Channel {
 struct Channel* c1;
 struct Channel* c2;
 struct Channel* c3;
+struct Channel* c4;
 struct Channel* c5;
+struct Channel* c6;
 
 static int step_count = 5;
 
@@ -81,6 +84,30 @@ unsigned int generateRandom(int to)
 	unsigned int rand;
 	get_random_bytes(&rand, sizeof(rand));
 	return rand % to;
+}
+
+static void intToVerdict(int value, char* verdict)
+{
+	switch (value) {
+	case 1:
+		strcpy(verdict, "AC");
+		break;
+
+	case 2:
+		strcpy(verdict, "WA");
+		break;
+
+	case 3:
+		strcpy(verdict, "TL");
+		break;
+
+	case 4:
+		strcpy(verdict, "ML");
+		break;
+
+	default:
+		strcpy(verdict, "RE");
+	}
 }
 
 static int team(void* data)
@@ -133,7 +160,7 @@ static int clientApp(void* data)
 		if (buffer[1] == 1) {
 			buffer[1] = 0;
 			printk("Client App send problem %c\n", buffer[2]);
-			// TODO: c4->put
+			put(c4, buffer, len);
 		}
 
 		buffer[0] = len;
@@ -156,13 +183,15 @@ static int monitor(void* data)
 {
 	char buffer[256];
 	int len = 20;
+	char verdict[5];
 	int i;
 
 	for (i = 0; i < step_count; i++) {
 		get(c5, buffer);
 
 		if (buffer[1] == 0) {
-			// TODO: get verdict
+			intToVerdict(buffer[3], verdict);
+			printk("Monitor get verdict %s\n", verdict);
 		} else {
 			buffer[0] = len;
 			put(c3, buffer, len);
@@ -173,24 +202,89 @@ static int monitor(void* data)
 	return 0;
 }
 
+static int controller(void* data)
+{
+	char buffer[256];
+	int len = 20;
+	char verdict[5];
+	int i;
+
+	for (i = 0; i < step_count; i++) {
+		get(c4, buffer);
+
+		if (buffer[1] == 0) {
+			printk("Controller get Problem %c\n", buffer[2]);
+			printk("Controller send to Testing System Problem %c", buffer[2]);
+			put(c6, buffer, len);
+		} else {
+			intToVerdict(buffer[3], verdict);
+			printk("Controller get verdict %s on Problem %c", verdict, buffer[2]);
+			buffer[1] = 0;
+			put(c5, buffer, len);
+		}
+	}
+
+	return 0;
+}
+
+static int testingSystem(void* data)
+{
+	char buffer[256];
+	char verdict[5];
+	int len = 20;
+	int i;
+
+	for (i = 0; i < step_count; i++) {
+		get(c6, buffer);
+
+		printk("Testing System get Problem %c\n", buffer[2]);
+
+		buffer[3] = generateRandom(5);
+		buffer[0] = len;
+		buffer[1] = 1;
+
+		put(c4, buffer, len);
+
+		intToVerdict(buffer[3], verdict);
+		printk("Testing System return verdict %s on Problem %c", verdict, buffer[2]);
+	}
+}
+
+struct Process* team_process;
+struct Process* client_app_process;
+struct Process* monitor_process;
+struct Process* controller_process;
+struct Process* testing_system_process;
+
 static void process(void)
 {
-	struct Process* team_process;
-	struct Process* client_app_process;
-	struct Process* monitor_process;
+	if (msg[0] == 'q') {
+		kthread_stop(team_process->descriptor);
+		kthread_stop(client_app_process->descriptor);
+		kthread_stop(monitor_process->descriptor);
+		kthread_stop(controller_process->descriptor);
+		kthread_stop(testing_system_process->descriptor);
+		return;
+	}
 
 	int team_data = 1;
 	int client_app_data = 2;
 	int monitor_data = 3;
+	int controller_data = 4;
+	int testing_system_data = 5;
 
-	char team_name[10] = "team_name";
+	char team_name[20] = "team_name";
 	char client_app_name[20] = "client_app_name";
 	char monitor_name[20] = "monitor_name";
+	char controller_name[20] = "controller_name";
+	char testing_system_name[20] = "testing_system_name";
 
 	c1 = (struct Channel*) vmalloc(sizeof(struct Channel));
 	c2 = (struct Channel*) vmalloc(sizeof(struct Channel));
 	c3 = (struct Channel*) vmalloc(sizeof(struct Channel));
+	c4 = (struct Channel*) vmalloc(sizeof(struct Channel));
 	c5 = (struct Channel*) vmalloc(sizeof(struct Channel));
+	c6 = (struct Channel*) vmalloc(sizeof(struct Channel));
 
 	spin_lock_init(&(c1->read_lock));
 	spin_lock_init(&(c1->write_lock));
@@ -204,9 +298,17 @@ static void process(void)
 	spin_lock_init(&(c3->write_lock));
 	spin_lock(&(c3->read_lock));
 
+	spin_lock_init(&(c4->read_lock));
+	spin_lock_init(&(c4->write_lock));
+	spin_lock(&(c4->read_lock));
+
 	spin_lock_init(&(c5->read_lock));
 	spin_lock_init(&(c5->write_lock));
 	spin_lock(&(c5->read_lock));
+
+	spin_lock_init(&(c6->read_lock));
+	spin_lock_init(&(c6->write_lock));
+	spin_lock(&(c6->read_lock));
 
 	team_process = (struct Process*) vmalloc(sizeof(struct Process));
 	team_process->descriptor = kthread_run(&team, (void*) team_data, team_name);
@@ -219,6 +321,14 @@ static void process(void)
 	monitor_process = (struct Process*) vmalloc(sizeof(struct Process));
 	monitor_process->descriptor = kthread_run(&monitor, (void*) monitor_data, monitor_name);
 	memcpy(monitor_process->keystring, monitor_name, sizeof(monitor_name));
+
+	controller_process = (struct Process*) vmalloc(sizeof(struct Process));
+	controller_process->descriptor = kthread_run(&controller, (void*) controller_data, controller_name);
+	memcpy(controller_process->keystring, controller_name, sizeof(controller_name));
+
+	testing_system_process = (struct Process*) vmalloc(sizeof(struct Process));
+	testing_system_process->descriptor = kthread_run(&testingSystem, (void*) testing_system_data, testing_system_name);
+	memcpy(testing_system_process->keystring, testing_system_name, sizeof(testing_system_name));
 }
 
 int init_module(void)
